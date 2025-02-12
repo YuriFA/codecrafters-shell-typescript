@@ -7,11 +7,20 @@ const rl = createInterface({
 
 function repl() {
   rl.question("$ ", (answer) => {
-    if (answer === 'exit 0') {
-      return rl.close();
+    const [command, ...args] = answer.split(" ");
+    switch (command) {
+      case "exit": {
+        return rl.close();
+      }
+
+      case "echo":
+        rl.write(`${args.join(' ')}\n`);
+        break;
+
+      default:
+        rl.write(`${answer}: command not found\n`);
     }
 
-    rl.write(`${answer}: command not found\n`);
     repl();
   });
 }
