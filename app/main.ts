@@ -7,9 +7,12 @@ const rl = createInterface({
 
 function repl() {
   rl.question("$ ", (answer) => {
+    if (answer === 'exit 0') {
+      return rl.close();
+    }
+
     rl.write(`${answer}: command not found\n`);
     repl();
-    // rl.close()
   });
 }
 
