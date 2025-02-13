@@ -49,9 +49,17 @@ const splitArgs = (str: string) => {
     }
   }
 
-  return result.map(([word, delimeter]) =>
-    delimeter === " " ? word : `${delimeter}${word}${delimeter}`,
-  );
+  return result.map(([word, delimeter]) => {
+    if (delimeter !== '"') {
+      word = word.replaceAll(/\\/g, "");
+    }
+
+    if (delimeter === " ") {
+      return word;
+    }
+
+    return `${delimeter}${word}${delimeter}`;
+  });
 };
 
 function repl() {
@@ -64,7 +72,9 @@ function repl() {
       }
 
       case "echo": {
-        rl.write(`${args.map(item => item.replace(/^['"](.*)['"]$/, '$1')).join(" ")}\n`);
+        rl.write(
+          `${args.map((item) => item.replace(/^['"](.*)['"]$/, "$1")).join(" ")}\n`,
+        );
         break;
       }
 
