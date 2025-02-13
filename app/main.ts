@@ -31,8 +31,11 @@ function repl() {
       }
 
       case "cd": {
-        if (args[0]) {
-          chdir(args[0]);
+        const path = args[0];
+        if (fs.existsSync(path)) {
+          chdir(path);
+        } else {
+          rl.write(`${command}: ${path}: No such file or directory\n`);
         }
         break;
       }
