@@ -14,6 +14,8 @@ const HOME_ENV = process.env.HOME;
 
 const COMMANDS_LIST = ["echo", "exit", "pwd", "type"];
 
+const ESCAPABLE_CHARS = ["\\", "$", "`", '"'];
+
 const splitArgs = (str: string) => {
   let result: [string, string][] = [];
 
@@ -27,25 +29,35 @@ const splitArgs = (str: string) => {
       continue;
     }
 
-    if (str[i] === currentDelimeter) {
-      if (word) {
-        if (prevDelimeter === " ") {
-          result.push([word, currentDelimeter]);
-        } else {
-          result[result.length - 1] = [
-            result[result.length - 1][0] + word,
-            result[result.length - 1][1],
-          ];
-        }
+    let isEscaped = false;
+    if (
+      currentDelimeter === '"' &&
+      str[i] === "\\" &&
+      ESCAPABLE_CHARS.includes(str[i + 1])
+    ) {
+      i += 1;
+      isEscaped = true;
+    }
 
-        word = "";
-      }
-    } else {
+    const isDelimeter = str[i] === currentDelimeter;
+    const isEndOfWord = i === str.length - 1 || (!isEscaped && isDelimeter);
+
+    if (!isDelimeter || isEscaped) {
       word += str[i];
     }
 
-    if (i === str.length - 1 && word) {
-      result.push([word, currentDelimeter]);
+    if (word && isEndOfWord) {
+      if (prevDelimeter === " ") {
+        result.push([word, currentDelimeter]);
+      } else {
+        result[result.length - 1] = [
+          result[result.length - 1][0] + word,
+          result[result.length - 1][1],
+        ];
+      }
+
+      prevDelimeter = currentDelimeter;
+      word = "";
     }
   }
 
