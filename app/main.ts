@@ -1,51 +1,45 @@
 import { createInterface } from "readline";
+import fs from "node:fs";
 
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
 });
 
-const COMMANDS = {
-  exit: {
-    command: "exit",
-    description: "is a shell builtin",
-  },
-  echo: {
-    command: "echo",
-    description: "is a shell builtin",
-  },
-  type: {
-    command: "type",
-    description: "is a shell builtin",
-  },
-} as const;
+const PATH_ENV = process.env.PATH;
 
-const COMMANDS_LIST = Object.values(COMMANDS).map((command) => command.command);
+const COMMANDS_LIST = ["echo", "exit", "type"];
 
 function repl() {
   rl.question("$ ", (answer) => {
     const [command, ...args] = answer.split(" ");
     switch (command) {
-      case COMMANDS.exit.command:
+      case "exit":
         return rl.close();
 
-      case COMMANDS.echo.command:
+      case "echo":
         rl.write(`${args.join(" ")}\n`);
         break;
 
-      case COMMANDS.type.command:
-        let targetCommand = args[0];
-        if (
-          COMMANDS_LIST.includes(
-            targetCommand as (typeof COMMANDS_LIST)[number],
-          )
-        ) {
-          rl.write(
-            `${args[0]} ${COMMANDS[targetCommand as keyof typeof COMMANDS].description}\n`,
-          );
-        } else {
-          rl.write(`${args[0]}: not found\n`);
+      case "type":
+        const targetCommand = args[0];
+        if (COMMANDS_LIST.includes(targetCommand)) {
+          rl.write(`${targetCommand} is a shell builtin\n`);
+          break;
         }
+
+        const paths = PATH_ENV?.split(":") || [];
+
+        let finded = paths.find((path) => {
+          return fs.existsSync(`${path}/${targetCommand}`);
+        });
+
+        if (finded) {
+          rl.write(`${targetCommand} is ${finded}/${targetCommand}\n`);
+          break;
+        }
+
+        rl.write(`${targetCommand}: not found\n`);
         break;
 
       default:
