@@ -14,16 +14,57 @@ const HOME_ENV = process.env.HOME;
 
 const COMMANDS_LIST = ["echo", "exit", "pwd", "type"];
 
+const splitArgs = (str: string) => {
+  let result: [string, string][] = [];
+
+  let word = "";
+  let currentDelimeter = " ";
+  let prevDelimeter = currentDelimeter;
+  for (let i = 0; i < str.length; i++) {
+    if (!word && ["'", '"', " "].includes(str[i])) {
+      prevDelimeter = currentDelimeter;
+      currentDelimeter = str[i];
+      continue;
+    }
+
+    if (str[i] === currentDelimeter) {
+      if (word) {
+        if (prevDelimeter === " ") {
+          result.push([word, currentDelimeter]);
+        } else {
+          result[result.length - 1] = [
+            result[result.length - 1][0] + word,
+            result[result.length - 1][1],
+          ];
+        }
+
+        word = "";
+      }
+    } else {
+      word += str[i];
+    }
+
+    if (i === str.length - 1 && word) {
+      result.push([word, currentDelimeter]);
+    }
+  }
+
+  return result.map(([word, delimeter]) =>
+    delimeter === " " ? word : `${delimeter}${word}${delimeter}`,
+  );
+};
+
 function repl() {
   rl.question("$ ", (answer) => {
-    const [command, ...args] = answer.split(" ");
+    let [command, ...args] = splitArgs(answer);
+
     switch (command) {
       case "exit": {
         return rl.close();
       }
 
       case "echo": {
-        rl.write(`${args.join(" ")}\n`);
+        rl.write(`${args.join(" ").replace(/['"]+/g, '')}\n`);
         break;
       }
 
