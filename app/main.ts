@@ -10,6 +10,7 @@ const rl = createInterface({
 });
 
 const PATH_ENV = process.env.PATH;
+const HOME_ENV = process.env.HOME;
 
 const COMMANDS_LIST = ["echo", "exit", "pwd", "type"];
 
@@ -34,6 +35,10 @@ function repl() {
       case "cd": {
         const path = args[0];
         let resultPath = path;
+
+        if (path.startsWith("~")) {
+          resultPath = resolve(HOME_ENV || "", path.slice(1), ...args.slice(1));
+        }
 
         if (path.startsWith(".")) {
           resultPath = resolve(cwd(), ...args);
