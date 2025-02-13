@@ -64,7 +64,7 @@ function repl() {
       }
 
       case "echo": {
-        rl.write(`${args.join(" ").replace(/['"]+/g, '')}\n`);
+        rl.write(`${args.map(item => item.replace(/^['"](.*)['"]$/, '$1')).join(" ")}\n`);
         break;
       }
 
