@@ -50,12 +50,8 @@ const splitArgs = (str: string) => {
   }
 
   return result.map(([word, delimeter]) => {
-    if (delimeter !== '"') {
-      word = word.replaceAll(/\\/g, "");
-    }
-
     if (delimeter === " ") {
-      return word;
+      return word.replaceAll(/\\/g, "");
     }
 
     return `${delimeter}${word}${delimeter}`;
