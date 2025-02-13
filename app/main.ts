@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { createInterface } from "readline";
 import { execSync } from "node:child_process";
+import { cwd } from "node:process";
 
 const rl = createInterface({
   input: process.stdin,
@@ -9,7 +10,7 @@ const rl = createInterface({
 
 const PATH_ENV = process.env.PATH;
 
-const COMMANDS_LIST = ["echo", "exit", "type"];
+const COMMANDS_LIST = ["echo", "exit", "pwd", "type"];
 
 function repl() {
   rl.question("$ ", (answer) => {
@@ -21,6 +22,11 @@ function repl() {
 
       case "echo": {
         rl.write(`${args.join(" ")}\n`);
+        break;
+      }
+
+      case "pwd": {
+        rl.write(`${cwd()}\n`);
         break;
       }
 
@@ -54,7 +60,7 @@ function repl() {
         });
 
         if (finded) {
-          const result  = execSync(`${command} ${args.join(" ")}`);
+          const result = execSync(`${command} ${args.join(" ")}`);
           rl.write(`${result.toString()}`);
           break;
         }
