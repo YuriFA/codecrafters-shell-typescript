@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { createInterface } from "readline";
 import { execSync } from "node:child_process";
-import { cwd } from "node:process";
+import { chdir, cwd } from "node:process";
 
 const rl = createInterface({
   input: process.stdin,
@@ -27,6 +27,13 @@ function repl() {
 
       case "pwd": {
         rl.write(`${cwd()}\n`);
+        break;
+      }
+
+      case "cd": {
+        if (args[0]) {
+          chdir(args[0]);
+        }
         break;
       }
 
