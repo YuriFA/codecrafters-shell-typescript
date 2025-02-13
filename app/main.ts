@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { createInterface } from "readline";
 import { execSync } from "node:child_process";
 import { chdir, cwd } from "node:process";
+import { resolve } from "node:path";
 
 const rl = createInterface({
   input: process.stdin,
@@ -32,10 +33,16 @@ function repl() {
 
       case "cd": {
         const path = args[0];
-        if (fs.existsSync(path)) {
-          chdir(path);
+        let resultPath = path;
+
+        if (path.startsWith(".")) {
+          resultPath = resolve(cwd(), ...args);
+        }
+
+        if (fs.existsSync(resultPath)) {
+          chdir(resultPath);
         } else {
-          rl.write(`${command}: ${path}: No such file or directory\n`);
+          rl.write(`${command}: ${resultPath}: No such file or directory\n`);
         }
         break;
       }
