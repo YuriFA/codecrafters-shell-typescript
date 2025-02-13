@@ -1,5 +1,6 @@
-import { createInterface } from "readline";
 import fs from "node:fs";
+import { createInterface } from "readline";
+import { execSync } from "node:child_process";
 
 const rl = createInterface({
   input: process.stdin,
@@ -14,14 +15,16 @@ function repl() {
   rl.question("$ ", (answer) => {
     const [command, ...args] = answer.split(" ");
     switch (command) {
-      case "exit":
+      case "exit": {
         return rl.close();
+      }
 
-      case "echo":
+      case "echo": {
         rl.write(`${args.join(" ")}\n`);
         break;
+      }
 
-      case "type":
+      case "type": {
         const targetCommand = args[0];
         if (COMMANDS_LIST.includes(targetCommand)) {
           rl.write(`${targetCommand} is a shell builtin\n`);
@@ -41,9 +44,23 @@ function repl() {
 
         rl.write(`${targetCommand}: not found\n`);
         break;
+      }
 
-      default:
+      default: {
+        const paths = PATH_ENV?.split(":") || [];
+
+        let finded = paths.find((path) => {
+          return fs.existsSync(`${path}/${command}`);
+        });
+
+        if (finded) {
+          const result  = execSync(`${command} ${args.join(" ")}`);
+          rl.write(`${result.toString()}`);
+          break;
+        }
+
         rl.write(`${answer}: command not found\n`);
+      }
     }
 
     repl();
