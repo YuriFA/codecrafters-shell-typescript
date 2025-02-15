@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { createInterface } from "readline";
-import { execSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { chdir, cwd } from "node:process";
 import nodePath from "node:path";
 import { splitArgs } from "./split-args";
@@ -15,8 +15,6 @@ const HOME_ENV = process.env.HOME;
 
 const COMMANDS_LIST = ["echo", "exit", "pwd", "type"];
 
-const cleanQuotes = (str: string) => str.replace(/^['"](.*)['"]$/, "$1");
-
 function repl() {
   rl.question("$ ", (answer) => {
     let [command, ...args] = splitArgs(answer);
@@ -27,7 +25,7 @@ function repl() {
       }
 
       case "echo": {
-        rl.write(`${args.map((item) => cleanQuotes(item)).join(" ")}\n`);
+        rl.write(`${args.join(" ")}\n`);
         break;
       }
 
@@ -70,7 +68,7 @@ function repl() {
         const paths = PATH_ENV?.split(":") || [];
 
         let finded = paths.find((path) => {
-          return fs.existsSync(`${path}/${targetCommand}`);
+          return fs.existsSync(nodePath.resolve(path, targetCommand));
         });
 
         if (finded) {
@@ -86,13 +84,12 @@ function repl() {
         const paths = PATH_ENV?.split(":") || [];
 
         const finded = paths.find((path) => {
-          return fs.existsSync(nodePath.resolve(path, cleanQuotes(command)));
+          return fs.existsSync(nodePath.resolve(path, command));
         });
 
         if (finded) {
           const result = spawnSync(command, args, {
             stdio: "inherit",
-            shell: true,
           });
 
           // const result = spawnSync(`${finded}/${command}`, args);
