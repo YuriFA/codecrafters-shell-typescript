@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import { createInterface } from "readline";
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import { chdir, cwd } from "node:process";
-import { resolve } from "node:path";
+import nodePath from "node:path";
+import { splitArgs } from "./split-args";
 
 const rl = createInterface({
   input: process.stdin,
@@ -14,61 +15,7 @@ const HOME_ENV = process.env.HOME;
 
 const COMMANDS_LIST = ["echo", "exit", "pwd", "type"];
 
-const ESCAPABLE_CHARS = ["\\", "$", "`", '"'];
-
-const splitArgs = (str: string) => {
-  let result: [string, string][] = [];
-
-  let word = "";
-  let currentDelimeter = " ";
-  let prevDelimeter = currentDelimeter;
-  for (let i = 0; i < str.length; i++) {
-    if (!word && ["'", '"', " "].includes(str[i])) {
-      prevDelimeter = currentDelimeter;
-      currentDelimeter = str[i];
-      continue;
-    }
-
-    let isEscaped = false;
-    if (
-      currentDelimeter === '"' &&
-      str[i] === "\\" &&
-      ESCAPABLE_CHARS.includes(str[i + 1])
-    ) {
-      i += 1;
-      isEscaped = true;
-    }
-
-    const isDelimeter = str[i] === currentDelimeter;
-    const isEndOfWord = i === str.length - 1 || (!isEscaped && isDelimeter);
-
-    if (!isDelimeter || isEscaped) {
-      word += str[i];
-    }
-
-    if (word && isEndOfWord) {
-      if (prevDelimeter === " ") {
-        result.push([word, currentDelimeter]);
-      } else {
-        result[result.length - 1] = [
-          result[result.length - 1][0] + word,
-          result[result.length - 1][1],
-        ];
-      }
-
-      prevDelimeter = currentDelimeter;
-      word = "";
-    }
-  }
-
-  return result.map(([word, delimeter]) => {
-    if (delimeter === " ") {
-      return word.replaceAll(/\\/g, "");
-    }
-
-    return `${delimeter}${word}${delimeter}`;
-  });
-};
+const cleanQuotes = (str: string) => str.replace(/^['"](.*)['"]$/, "$1");
 
 function repl() {
   rl.question("$ ", (answer) => {
@@ -80,9 +27,7 @@ function repl() {
       }
 
       case "echo": {
-        rl.write(
-          `${args.map((item) => item.replace(/^['"](.*)['"]$/, "$1")).join(" ")}\n`,
-        );
+        rl.write(`${args.map((item) => cleanQuotes(item)).join(" ")}\n`);
         break;
       }
 
@@ -96,11 +41,15 @@ function repl() {
         let resultPath = path;
 
         if (path.startsWith("~")) {
-          resultPath = resolve(HOME_ENV || "", path.slice(1), ...args.slice(1));
+          resultPath = nodePath.resolve(
+            HOME_ENV || "",
+            path.slice(1),
+            ...args.slice(1),
+          );
         }
 
         if (path.startsWith(".")) {
-          resultPath = resolve(cwd(), ...args);
+          resultPath = nodePath.resolve(cwd(), ...args);
         }
 
         if (fs.existsSync(resultPath)) {
@@ -136,13 +85,25 @@ function repl() {
       default: {
         const paths = PATH_ENV?.split(":") || [];
 
-        let finded = paths.find((path) => {
-          return fs.existsSync(`${path}/${command}`);
+        const finded = paths.find((path) => {
+          return fs.existsSync(nodePath.resolve(path, cleanQuotes(command)));
         });
 
         if (finded) {
-          const result = execSync(`${command} ${args.join(" ")}`);
-          rl.write(`${result.toString()}`);
+          const result = spawnSync(command, args, {
+            stdio: "inherit",
+            shell: true,
+          });
+
+          // const result = spawnSync(`${finded}/${command}`, args);
+          // if (result.error) {
+          //   console.error(`Error: ${result.error.message}`);
+          // } else {
+          //   console.log(`Output:\n${result.stdout}`);
+          //   if (result.stderr) console.error(`stderr: ${result.stderr}`);
+          // }
+
+          // rl.write(`${result.toString()}`);
           break;
         }
 
