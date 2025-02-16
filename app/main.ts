@@ -102,21 +102,23 @@ const executeNonBuiltinCommand = (
   return [result.stdout.toString().trim(), result.stderr.toString().trim()];
 };
 
-// [ "Maria file cannot be found", "2>", "/tmp/quz/foo.md" ]
-
 const splitRedirectArgs = (args: string[]) => {
   let commandArgs: string[] = [];
   let redirectOut: string | undefined;
+  let redirectOutFlag: "w" | "a" = "w";
   let redirectError: string | undefined;
+  let redirectErrorFlag: "w" | "a" = "w";
 
   for (let i = 0; i < args.length; i++) {
-    if ([">", "1>"].includes(args[i])) {
+    if (args[i].startsWith(">") || args[i].startsWith("1>")) {
+      redirectOutFlag = args[i].includes(">>") ? "a" : "w";
       i += 1;
       redirectOut = args[i];
       continue;
     }
 
     if (args[i] === "2>") {
+      redirectErrorFlag = args[i].includes(">>") ? "a" : "w";
       i += 1;
       redirectError = args[i];
       continue;
@@ -125,16 +127,26 @@ const splitRedirectArgs = (args: string[]) => {
     commandArgs.push(args[i]);
   }
 
-  return { commandArgs, redirectOut, redirectError };
+  return {
+    commandArgs,
+    redirectOut,
+    redirectOutFlag,
+    redirectError,
+    redirectErrorFlag,
+  };
 };
 
 function repl() {
   rl.question("$ ", (answer) => {
     let [command, ...args] = splitArgs(answer);
-    const { commandArgs, redirectOut, redirectError } = splitRedirectArgs(args);
+    const {
+      commandArgs,
+      redirectOut,
+      redirectOutFlag,
+      redirectError,
+      redirectErrorFlag,
+    } = splitRedirectArgs(args);
     const commandBuiltin = builtinCommands.get(command);
-
-    // console.log({ args, commandArgs, redirectOut, redirectError });
 
     let result: Array<string | undefined>;
 
@@ -146,14 +158,15 @@ function repl() {
 
     let [stdout, stderr, stdexit] = result;
 
-    // console.log({ stdout, stderr, stdexit });
     if (stdexit === "close") {
       return rl.close();
     }
 
     if (redirectOut) {
       try {
-        fs.writeFileSync(redirectOut, stdout || "");
+        fs.writeFileSync(redirectOut, stdout ? `${stdout}\n` : "", {
+          flag: redirectOutFlag,
+        });
       } catch (error) {
         if (error instanceof Error) {
           stderr = error.toString();
@@ -167,7 +180,9 @@ function repl() {
 
     if (redirectError) {
       try {
-        fs.writeFileSync(redirectError, stderr || "");
+        fs.writeFileSync(redirectError, stderr ? `${stderr}\n` : "", {
+          flag: redirectErrorFlag,
+        });
       } catch (error) {
         if (error instanceof Error) {
           stderr = error.toString();
