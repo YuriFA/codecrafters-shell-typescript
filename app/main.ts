@@ -117,7 +117,7 @@ const splitRedirectArgs = (args: string[]) => {
       continue;
     }
 
-    if (args[i] === "2>") {
+    if (args[i].startsWith("2>")) {
       redirectErrorFlag = args[i].includes(">>") ? "a" : "w";
       i += 1;
       redirectError = args[i];
