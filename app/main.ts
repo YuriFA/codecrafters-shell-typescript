@@ -15,16 +15,22 @@ const HOME_ENV = process.env.HOME;
 
 const builtinCommands = new Map<
   string,
-  { execute: (args: string[]) => void }
+  { execute: (args: string[]) => Array<string | undefined> }
 >();
 builtinCommands.set("exit", {
-  execute: () => rl.close(),
+  execute: () => {
+    return [, , "close"];
+  },
 });
 builtinCommands.set("echo", {
-  execute: (args) => rl.write(`${args.join(" ")}\n`),
+  execute: (args) => {
+    return [args.join(" ")];
+  },
 });
 builtinCommands.set("pwd", {
-  execute: () => rl.write(`${cwd()}\n`),
+  execute: () => {
+    return [cwd()];
+  },
 });
 
 builtinCommands.set("cd", {
@@ -46,9 +52,10 @@ builtinCommands.set("cd", {
 
     if (fs.existsSync(resultPath)) {
       chdir(resultPath);
-    } else {
-      rl.write(`cd: ${resultPath}: No such file or directory\n`);
+      return [];
     }
+
+    return [, `cd: ${resultPath}: No such file or directory`];
   },
 });
 
@@ -56,8 +63,7 @@ builtinCommands.set("type", {
   execute: (args) => {
     const targetCommand = args[0];
     if (builtinCommands.has(targetCommand)) {
-      rl.write(`${targetCommand} is a shell builtin\n`);
-      return;
+      return [`${targetCommand} is a shell builtin`];
     }
 
     const paths = PATH_ENV?.split(":") || [];
@@ -67,30 +73,12 @@ builtinCommands.set("type", {
     });
 
     if (!finded) {
-      rl.write(`${targetCommand}: not found\n`);
-      return;
+      return [, `${targetCommand}: not found`];
     }
-    rl.write(`${targetCommand} is ${finded}/${targetCommand}\n`);
+
+    return [`${targetCommand} is ${finded}/${targetCommand}`];
   },
 });
-
-const ensureDirectoriesExist = (filePath: string) => {
-  const dirPath = nodePath.dirname(filePath);
-
-  // Split the directory path into its components
-  const pathSegments = dirPath.split(nodePath.sep);
-
-  // Reconstruct the path step by step and check each segment
-  let currentPath = pathSegments[0] === "" ? nodePath.sep : pathSegments[0];
-  for (let i = 1; i < pathSegments.length; i++) {
-    currentPath = nodePath.join(currentPath, pathSegments[i]);
-
-    // Check if the current path exists
-    if (!fs.existsSync(currentPath)) {
-      throw new Error(`Directory does not exist: ${currentPath}`);
-    }
-  }
-};
 
 const executeNonBuiltinCommand = (
   command: string,
@@ -99,50 +87,19 @@ const executeNonBuiltinCommand = (
 ) => {
   const paths = PATH_ENV?.split(":") || [];
 
-  const finded = paths.find((path) => {
-    return fs.existsSync(nodePath.resolve(path, command));
-  });
-  // console.log({ command, args, finded });
+  const finded = paths.find((path) =>
+    fs.existsSync(nodePath.resolve(path, command)),
+  );
 
   if (!finded) {
-    rl.write(`${originalQuery}: command not found\n`);
-    return;
+    return [, `${originalQuery}: command not found`];
   }
 
-  const redirectArgIndex = args.findIndex((arg) => ["1>", ">"].includes(arg));
+  const result = spawnSync(command, args, {
+    stdio: ["inherit", "pipe", "pipe"],
+  });
 
-  if (redirectArgIndex && args.length > redirectArgIndex) {
-    const outputFileName = args[redirectArgIndex + 1];
-
-    // try {
-    //   ensureDirectoriesExist(outputFileName);
-    // } catch (error) {
-    //   console.log({ error });
-    // }
-    try {
-      const outputFile = fs.openSync(outputFileName, "w");
-      console.log({ redirectArgIndex, outputFileName });
-      const result = spawnSync(command, args.slice(0, redirectArgIndex), {
-        stdio: ["inherit", outputFile, "inherit"], // Redirect stdout to the file
-      });
-      fs.closeSync(outputFile);
-    } catch (error) {
-      rl.write(`no such file or directory: ${outputFileName}\n`);
-    }
-  } else {
-    const result = spawnSync(command, args, {
-      stdio: "inherit",
-    });
-  }
-
-  // if (result.error) {
-  //   console.error(`Error: ${result.error.message}`);
-  // } else {
-  //   console.log(`Output:\n${result.stdout}`);
-  //   if (result.stderr) console.error(`stderr: ${result.stderr}`);
-  // }
-
-  // rl.write(`${result.toString()}`);
+  return [result.stdout.toString().trim(), result.stderr.toString().trim()];
 };
 
 function repl() {
@@ -151,10 +108,51 @@ function repl() {
 
     const commandBuiltin = builtinCommands.get(command);
 
+    const redirectArgIndex = args.findIndex((arg) => ["1>", ">"].includes(arg));
+
+    const commandArgs = args.slice(
+      0,
+      redirectArgIndex > 0 ? redirectArgIndex : undefined,
+    );
+
+    let result: Array<string | undefined>;
+
     if (commandBuiltin) {
-      commandBuiltin.execute(args);
+      result = commandBuiltin.execute(commandArgs);
     } else {
-      executeNonBuiltinCommand(command, args, answer);
+      result = executeNonBuiltinCommand(command, commandArgs, answer);
+    }
+
+    if (result.length > 0) {
+      let [stdout, stderr, stdexit] = result;
+
+      if (stdexit === "close") {
+        return rl.close();
+      }
+
+      if (redirectArgIndex > -1 && args.length > redirectArgIndex) {
+        if (stdout) {
+          try {
+            const outputFileName = args[redirectArgIndex + 1];
+
+            fs.writeFileSync(outputFileName, stdout);
+          } catch (error) {
+            rl.write(`${error}\n`);
+          }
+        }
+
+        if (stderr) {
+          rl.write(`${stderr}\n`);
+        }
+      } else {
+        if (stdout) {
+          rl.write(`${stdout}\n`);
+        }
+
+        if (stderr) {
+          rl.write(`${stderr}\n`);
+        }
+      }
     }
 
     repl();
