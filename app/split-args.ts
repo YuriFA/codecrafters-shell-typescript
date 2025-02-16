@@ -84,3 +84,37 @@ export const splitArgs = (str: string) => {
 
   return result;
 };
+
+export const splitRedirectArgs = (args: string[]) => {
+  let commandArgs: string[] = [];
+  let redirectOut: string | undefined;
+  let redirectOutFlag: "w" | "a" = "w";
+  let redirectError: string | undefined;
+  let redirectErrorFlag: "w" | "a" = "w";
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith(">") || args[i].startsWith("1>")) {
+      redirectOutFlag = args[i].includes(">>") ? "a" : "w";
+      i += 1;
+      redirectOut = args[i];
+      continue;
+    }
+
+    if (args[i].startsWith("2>")) {
+      redirectErrorFlag = args[i].includes(">>") ? "a" : "w";
+      i += 1;
+      redirectError = args[i];
+      continue;
+    }
+
+    commandArgs.push(args[i]);
+  }
+
+  return {
+    commandArgs,
+    redirectOut,
+    redirectOutFlag,
+    redirectError,
+    redirectErrorFlag,
+  };
+};
