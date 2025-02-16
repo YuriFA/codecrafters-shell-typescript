@@ -102,18 +102,39 @@ const executeNonBuiltinCommand = (
   return [result.stdout.toString().trim(), result.stderr.toString().trim()];
 };
 
+// [ "Maria file cannot be found", "2>", "/tmp/quz/foo.md" ]
+
+const splitRedirectArgs = (args: string[]) => {
+  let commandArgs: string[] = [];
+  let redirectOut: string | undefined;
+  let redirectError: string | undefined;
+
+  for (let i = 0; i < args.length; i++) {
+    if ([">", "1>"].includes(args[i])) {
+      i += 1;
+      redirectOut = args[i];
+      continue;
+    }
+
+    if (args[i] === "2>") {
+      i += 1;
+      redirectError = args[i];
+      continue;
+    }
+
+    commandArgs.push(args[i]);
+  }
+
+  return { commandArgs, redirectOut, redirectError };
+};
+
 function repl() {
   rl.question("$ ", (answer) => {
     let [command, ...args] = splitArgs(answer);
-
+    const { commandArgs, redirectOut, redirectError } = splitRedirectArgs(args);
     const commandBuiltin = builtinCommands.get(command);
 
-    const redirectArgIndex = args.findIndex((arg) => ["1>", ">"].includes(arg));
-
-    const commandArgs = args.slice(
-      0,
-      redirectArgIndex > 0 ? redirectArgIndex : undefined,
-    );
+    // console.log({ args, commandArgs, redirectOut, redirectError });
 
     let result: Array<string | undefined>;
 
@@ -123,36 +144,39 @@ function repl() {
       result = executeNonBuiltinCommand(command, commandArgs, answer);
     }
 
-    if (result.length > 0) {
-      let [stdout, stderr, stdexit] = result;
+    let [stdout, stderr, stdexit] = result;
 
-      if (stdexit === "close") {
-        return rl.close();
-      }
+    // console.log({ stdout, stderr, stdexit });
+    if (stdexit === "close") {
+      return rl.close();
+    }
 
-      if (redirectArgIndex > -1 && args.length > redirectArgIndex) {
-        if (stdout) {
-          try {
-            const outputFileName = args[redirectArgIndex + 1];
-
-            fs.writeFileSync(outputFileName, stdout);
-          } catch (error) {
-            rl.write(`${error}\n`);
-          }
-        }
-
-        if (stderr) {
-          rl.write(`${stderr}\n`);
-        }
-      } else {
-        if (stdout) {
-          rl.write(`${stdout}\n`);
-        }
-
-        if (stderr) {
-          rl.write(`${stderr}\n`);
+    if (redirectOut) {
+      try {
+        fs.writeFileSync(redirectOut, stdout || "");
+      } catch (error) {
+        if (error instanceof Error) {
+          stderr = error.toString();
         }
       }
+    }
+
+    if (!redirectOut && stdout) {
+      rl.write(`${stdout}\n`);
+    }
+
+    if (redirectError) {
+      try {
+        fs.writeFileSync(redirectError, stderr || "");
+      } catch (error) {
+        if (error instanceof Error) {
+          stderr = error.toString();
+        }
+      }
+    }
+
+    if (!redirectError && stderr) {
+      rl.write(`${stderr}\n`);
     }
 
     repl();
