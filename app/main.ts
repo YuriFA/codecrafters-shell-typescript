@@ -1,11 +1,25 @@
 import fs from "node:fs";
-import { createInterface } from "readline";
+import readline, { createInterface } from "readline";
 import { splitArgs, splitRedirectArgs } from "./split-args";
 import { builtinCommands, executeNonBuiltinCommand } from "./commands";
 
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
+});
+
+process.stdin.on("keypress", (_, key) => {
+  if (key.name === "tab") {
+    const search = rl.line.slice(0, -1);
+    const finded = [...builtinCommands.keys()].find((cmd) => {
+      return cmd.startsWith(search);
+    });
+    if (finded) {
+      readline.cursorTo(process.stdout, rl.getCursorPos().cols - 3);
+      readline.clearLine(process.stdout, 1);
+      process.stdout.write(finded.slice(search.length) + ' ');
+    }
+  }
 });
 
 function repl() {
