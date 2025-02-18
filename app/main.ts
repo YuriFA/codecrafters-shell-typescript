@@ -6,21 +6,26 @@ import { builtinCommands, executeNonBuiltinCommand } from "./commands";
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
+  completer: (line: string) => {
+    const completions = [...builtinCommands.keys()].map(item => item + ' ');
+    const hits = completions.filter((item) => item.startsWith(line));
+    return [hits.length ? hits : completions, line];
+  },
 });
 
-process.stdin.on("keypress", (_, key) => {
-  if (key.name === "tab") {
-    const search = rl.line.slice(0, -1);
-    const finded = [...builtinCommands.keys()].find((cmd) => {
-      return cmd.startsWith(search);
-    });
-    if (finded) {
-      readline.cursorTo(process.stdout, rl.getCursorPos().cols - 3);
-      readline.clearLine(process.stdout, 1);
-      process.stdout.write(finded.slice(search.length) + ' ');
-    }
-  }
-});
+// process.stdin.on("keypress", (_, key) => {
+//   if (key.name === "tab") {
+//     const search = rl.line.slice(0, -1);
+//     const finded = [...builtinCommands.keys()].find((cmd) => {
+//       return cmd.startsWith(search);
+//     });
+//     if (finded) {
+//       readline.cursorTo(process.stdout, rl.getCursorPos().cols - 3);
+//       readline.clearLine(process.stdout, 1);
+//       process.stdout.write(finded.slice(search.length) + " ");
+//     }
+//   }
+// });
 
 function repl() {
   rl.question("$ ", (answer) => {
