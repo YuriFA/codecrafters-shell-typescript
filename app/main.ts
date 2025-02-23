@@ -18,7 +18,29 @@ const tabCompleter = {
   previous: "",
   complete(line: string) {
     this.previous = line;
-    return findPossibleCommands().filter((cmd) => cmd.startsWith(line));
+    let hits = findPossibleCommands().filter((cmd) => cmd.startsWith(line));
+
+    if (hits.length < 2) {
+      return { hits, line };
+    }
+
+    let i = line.length;
+    let finded = false;
+    let targetHit = hits[0];
+    let largestOverallMatch = line;
+
+    while (finded === false && targetHit.length > i) {
+      if (
+        hits.every((hit) => hit.startsWith(largestOverallMatch + targetHit[i]))
+      ) {
+        largestOverallMatch += targetHit[i];
+        i += 1;
+      } else {
+        finded = true;
+      }
+    }
+
+    return { hits, line: largestOverallMatch };
   },
 };
 
@@ -45,12 +67,12 @@ const rlOutput = {
 
 process.stdin.on("keypress", (_, key) => {
   if (key.name === "tab") {
-    const line = rl.line.replaceAll("\t", "");
     const prevLine = tabCompleter.previous;
-    const hits = tabCompleter.complete(line);
+    const { hits, line } = tabCompleter.complete(rl.line.replaceAll("\t", ""));
 
     if (hits.length === 0) {
-      rlOutput.rewrite(line + RING_BELL, { toStdout: true });
+      rlOutput.rewrite(line)
+      rlOutput.append(RING_BELL, { toStdout: true });
       return;
     }
 
@@ -60,12 +82,13 @@ process.stdin.on("keypress", (_, key) => {
     }
 
     if (prevLine !== line) {
-      rlOutput.rewrite(line + RING_BELL, { toStdout: true });
+      rlOutput.rewrite(line);
+      rlOutput.append(RING_BELL, { toStdout: true });
       return;
     }
 
     rlOutput.append("\n" + hits.sort().join("  ") + "\n", { toStdout: true });
-    rlOutput.rewrite(line, { toStdout: true });
+    rlOutput.rewrite(line);
   }
 });
 
