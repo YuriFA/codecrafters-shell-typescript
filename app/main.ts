@@ -7,38 +7,70 @@ import {
   findPossibleCommands,
 } from "./commands";
 
+const RING_BELL = "\u0007";
+
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
-  completer: (line: string) => {
-    const completions = findPossibleCommands().map((item) => item + " ");
-    const hits = completions.filter((item) => item.startsWith(line));
-
-    if (hits.length) {
-      return [hits, line];
-    } else {
-      rl.write("\u0007");
-      return [completions, "echo"];
-    }
-  },
 });
 
-// process.stdin.on("keypress", (_, key) => {
-//   if (key.name === "tab") {
-//     const search = rl.line.slice(0, -1);
-//     const finded = [...builtinCommands.keys()].find((cmd) => {
-//       return cmd.startsWith(search);
-//     });
-//     if (finded) {
-//       readline.cursorTo(process.stdout, rl.getCursorPos().cols - 3);
-//       readline.clearLine(process.stdout, 1);
-//       process.stdout.write(finded.slice(search.length) + " ");
-//     }
-//   }
-// });
+const tabCompleter = {
+  previous: "",
+  complete(line: string) {
+    this.previous = line;
+    return findPossibleCommands().filter((cmd) => cmd.startsWith(line));
+  },
+};
+
+const rlOutput = {
+  prompt: "$ ",
+  rewrite(data: string, { toStdout = false } = {}) {
+    if (toStdout) {
+      process.stdout.write("\r" + this.prompt + data);
+      return;
+    }
+
+    rl.write(null, { ctrl: true, name: "u" });
+    rl.write(data);
+  },
+  append(data: string, { toStdout = false } = {}) {
+    if (toStdout) {
+      process.stdout.write(data);
+      return;
+    }
+
+    rl.write(data);
+  },
+};
+
+process.stdin.on("keypress", (_, key) => {
+  if (key.name === "tab") {
+    const line = rl.line.replaceAll("\t", "");
+    const prevLine = tabCompleter.previous;
+    const hits = tabCompleter.complete(line);
+
+    if (hits.length === 0) {
+      rlOutput.rewrite(line + RING_BELL, { toStdout: true });
+      return;
+    }
+
+    if (hits.length === 1) {
+      rlOutput.rewrite(hits[0] + " ");
+      return;
+    }
+
+    if (prevLine !== line) {
+      rlOutput.rewrite(line + RING_BELL, { toStdout: true });
+      return;
+    }
+
+    rlOutput.append("\n" + hits.sort().join("  ") + "\n", { toStdout: true });
+    rlOutput.rewrite(line, { toStdout: true });
+  }
+});
 
 function repl() {
-  rl.question("$ ", (answer) => {
+  rl.question(rlOutput.prompt, (answer) => {
     let [command, ...args] = splitArgs(answer);
     const {
       commandArgs,
