@@ -7,9 +7,15 @@ const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   completer: (line: string) => {
-    const completions = [...builtinCommands.keys()].map(item => item + ' ');
+    const completions = [...builtinCommands.keys()].map((item) => item + " ");
     const hits = completions.filter((item) => item.startsWith(line));
-    return [hits.length ? hits : completions, line];
+
+    if (hits.length) {
+      return [hits, line];
+    } else {
+      rl.write('\u0007');
+      return [completions, 'echo'];
+    }
   },
 });
 
