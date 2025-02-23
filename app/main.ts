@@ -1,20 +1,24 @@
 import fs from "node:fs";
-import readline, { createInterface } from "readline";
+import { createInterface } from "readline";
 import { splitArgs, splitRedirectArgs } from "./split-args";
-import { builtinCommands, executeNonBuiltinCommand } from "./commands";
+import {
+  builtinCommands,
+  executeNonBuiltinCommand,
+  findPossibleCommands,
+} from "./commands";
 
 const rl = createInterface({
   input: process.stdin,
   output: process.stdout,
   completer: (line: string) => {
-    const completions = [...builtinCommands.keys()].map((item) => item + " ");
+    const completions = findPossibleCommands().map((item) => item + " ");
     const hits = completions.filter((item) => item.startsWith(line));
 
     if (hits.length) {
       return [hits, line];
     } else {
-      rl.write('\u0007');
-      return [completions, 'echo'];
+      rl.write("\u0007");
+      return [completions, "echo"];
     }
   },
 });

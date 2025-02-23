@@ -74,6 +74,21 @@ builtinCommands.set("type", {
   },
 });
 
+export const findPossibleCommands = () => {
+  const paths = PATH_ENV?.split(":") || [];
+  const builtin = Array.from(builtinCommands.keys());
+
+  const nonBuiltin = paths.reduce((acc, curr) => {
+    if (fs.existsSync(curr) && fs.lstatSync(curr).isDirectory()) {
+      return [...acc, ...fs.readdirSync(curr)];
+    }
+
+    return acc;
+  }, [] as string[]);
+
+  return [...new Set([...builtin, ...nonBuiltin])];
+};
+
 export const executeNonBuiltinCommand = (
   command: string,
   args: string[],
